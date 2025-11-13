@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Справка — метод дихотомии</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.6;
+      color: #222;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    code {
+      background: #f1f1f1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    pre {
+      background: #f1f1f1;
+      padding: 10px;
+      border-radius: 6px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Справка по программе</h1>
+
+<p>
+Эта программа реализует <b>метод дихотомии</b> — один из базовых методов
+одномерной безусловной минимизации. Метод работает при условии, что функция
+<b>унимодальна</b> на отрезке <code>[a, b]</code>.
+</p>
+
+<h2>Суть метода</h2>
+
+<p>
+На каждой итерации вычисляются две точки:
+</p>
+
+<pre>
+x₁ = (a + b − δ) / 2
+x₂ = (a + b + δ) / 2
+</pre>
+
+<p>
+Если <code>f(x₁) &lt;= f(x₂)</code>, то новый интервал равен <code>[a, x₂]</code>,
+иначе — <code>[x₁, b]</code>.
+</p>
+
+<p>
+Процесс продолжается, пока длина интервала не станет меньше <code>ε</code>
+или не закончится лимит итераций.
+</p>
+
+<h2>Использование программы</h2>
+
+<ol>
+  <li>Введите функцию <code>f(x)</code>. Поддерживаются:
+      <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>exp</code>,
+      <code>log</code>, <code>sqrt</code>, <code>abs</code>, <code>pow(x,y)</code>.
+  </li>
+  <li>Установите границы <code>a</code> и <code>b</code>.</li>
+  <li>Укажите <code>ε</code> и <code>δ</code>.</li>
+  <li>Нажмите «Запустить».</li>
+  <li>Можно остановить процесс кнопкой «Остановить».</li>
+  <li>Итерации можно экспортировать в CSV.</li>
+</ol>
+
+<h2>Пример (аналитическое решение)</h2>
+
+<p>
+Пусть:
+</p>
+
+<pre>
+f(x) = (x − 2)² + 3
+</pre>
+
+<p>
+Аналитически минимум достигается в:
+</p>
+
+<pre>
+x* = 2
+f(x*) = 3
+</pre>
+
+<p>
+Если задать в программе:
+</p>
+
+<ul>
+  <li><code>f(x) = (x-2)*(x-2)+3</code></li>
+  <li><code>a = -5</code></li>
+  <li><code>b = 5</code></li>
+  <li><code>ε = 1e-4</code></li>
+  <li><code>δ = 5e-5</code></li>
+</ul>
+
+<p>
+То последовательность итераций будет сужаться к <b>x = 2</b>,
+что отображается на графике и в таблице.
+</p>
+
+</body>
+</html>

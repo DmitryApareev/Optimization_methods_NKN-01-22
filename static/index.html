@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Метод дихотомии — минимизация</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;margin:0;background:#0b0e14;color:#e6e6e6}
+    header{padding:16px 20px;background:#121826;border-bottom:1px solid #1e2636}
+    h1{margin:0;font-size:20px}
+    main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px}
+    .card{background:#0f1423;border:1px solid #1e2636;border-radius:14px;padding:14px}
+    label{display:block;font-size:12px;color:#aab3c5;margin-top:8px}
+    input,button{width:100%;padding:10px;border-radius:10px;border:1px solid #263047;background:#0b0f1b;color:#e6e6e6}
+    button{cursor:pointer}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions{display:flex;gap:10px;margin-top:10px;align-items:center}
+    .status{font-size:13px;color:#b9c2d0;margin-top:6px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{border-bottom:1px solid #1e2636;padding:6px 8px;text-align:right}
+    th{text-align:right;color:#aab3c5;position:sticky;top:0;background:#0f1423}
+    .muted{color:#94a0b4;margin-top:6px}
+    a{color:#80c0ff;text-decoration:none}
+    .pill{display:inline-block;padding:4px 9px;background:#162033;border:1px solid #22304b;border-radius:999px;font-size:12px}
+    .pill:hover{background:#1b2538}
+    @media (max-width:900px){
+      main{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Метод дихотомии · безусловная минимизация (вариант 3)</h1>
+</header>
+
+<main>
+  <section class="card">
+
+    <label>f(x):</label>
+    <input id="func" value="(x-2)*(x-2)+3"/>
+
+    <div class="row">
+      <div>
+        <label>a:</label>
+        <input id="a" value="-5"/>
+      </div>
+      <div>
+        <label>b:</label>
+        <input id="b" value="5"/>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>ε:</label>
+        <input id="eps" value="1e-4"/>
+      </div>
+      <div>
+        <label>δ:</label>
+        <input id="delta" value="5e-5"/>
+      </div>
+    </div>
+
+    <label>Макс. итераций:</label>
+    <input id="maxIter" value="200"/>
+
+    <div class="actions">
+      <button id="btnStart">▶ Запустить</button>
+      <button id="btnStop" disabled>■ Остановить</button>
+      <a id="export" class="pill" href="#" style="display:none">Экспорт CSV</a>
+      <a class="pill" href="/help" target="_blank">Справка</a>
+    </div>
+
+    <div id="status" class="status">Готово.</div>
+  </section>
+
+  <section class="card">
+    <div id="plot" style="width:100%;height:420px"></div>
+    <div id="best" class="muted">Текущее приближение: —</div>
+  </section>
+
+  <section class="card" style="grid-column:1/span 2">
+    <div style="max-height:260px;overflow:auto">
+      <table>
+        <thead>
+        <tr>
+          <th>k</th><th>a</th><th>b</th><th>mid</th><th>f(mid)</th><th>b−a</th>
+        </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+let runId = null;
+let es = null;
+
+function fmt(x){
+  if(Number.isNaN(x)) return "NaN";
+  const ax = Math.abs(x);
+  if(ax > 1e4 || ax < 1e-3) return x.toExponential(6);
+  return x.toFixed(6);
+}
+
+function plotFunction(xs, ys){
+  Plotly.newPlot("plot", [
+    {x: xs, y: ys, mode:"lines", name:"f(x)"},
+    {x: [], y: [], mode:"markers+lines", name:"итерации"}
+  ], {
+    margin:{l:40,r:10,t:10,b:40},
+    paper_bgcolor:"#0f1423",
+    plot_bgcolor:"#0f1423",
+    font:{color:"#e6e6e6"}
+  }, {displayModeBar:false});
+}
+
+function addIter(it){
+  const tr =
+    "<tr><td>"+it.k+"</td><td>"+fmt(it.a)+"</td><td>"+fmt(it.b)+"</td><td>"+
+    fmt(it.xmid)+"</td><td>"+fmt(it.fxmid)+"</td><td>"+fmt(it.len)+"</td></tr>";
+
+  document.getElementById("tbody").insertAdjacentHTML("beforeend", tr);
+
+  Plotly.extendTraces("plot",
+    {x:[[it.xmid]], y:[[it.fxmid]]}, [1]);
+
+  document.getElementById("best").innerText =
+    "Текущее приближение: x* ≈ " + fmt(it.xmid) +
+    ", f(x*) ≈ " + fmt(it.fxmid);
+}
+
+async function start(){
+  const body = {
+    func: document.getElementById("func").value,
+    a: parseFloat(document.getElementById("a").value),
+    b: parseFloat(document.getElementById("b").value),
+    eps: parseFloat(document.getElementById("eps").value),
+    delta: parseFloat(document.getElementById("delta").value),
+    maxIter: parseInt(document.getElementById("maxIter").value)
+  };
+
+  document.getElementById("status").innerText = "Запуск…";
+
+  const res = await fetch("/start", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(body)
+  });
+
+  if(!res.ok){
+    document.getElementById("status").innerText = "Ошибка: "+ await res.text();
+    return;
+  }
+
+  const j = await res.json();
+  runId = j.id;
+
+  document.getElementById("tbody").innerHTML = "";
+  document.getElementById("export").style.display = "inline-block";
+  document.getElementById("export").href = "/export?id=" + runId;
+
+  plotFunction(j.xs, j.ys);
+  subscribe();
+
+  document.getElementById("btnStart").disabled = true;
+  document.getElementById("btnStop").disabled = false;
+  document.getElementById("status").innerText = "Выполняется…";
+}
+
+function subscribe(){
+  if(es) es.close();
+  es = new EventSource("/stream?id=" + runId);
+
+  es.addEventListener("msg", ev => {
+    const m = JSON.parse(ev.data);
+
+    if(m.type === "iter"){
+      addIter(m.iter);
+    }
+    if(m.type === "done"){
+      document.getElementById("status").innerText =
+        "Готово: x* ≈ " + fmt(m.x) + ", f(x*) ≈ " + fmt(m.fx);
+      document.getElementById("btnStart").disabled = false;
+      document.getElementById("btnStop").disabled = true;
+    }
+    if(m.type === "stopped"){
+      document.getElementById("status").innerText =
+        "Остановлено.";
+      document.getElementById("btnStart").disabled = false;
+      document.getElementById("btnStop").disabled = true;
+    }
+    if(m.type === "error"){
+      document.getElementById("status").innerText = "Ошибка: " + m.err;
+      document.getElementById("btnStart").disabled = false;
+      document.getElementById("btnStop").disabled = true;
+    }
+  });
+}
+
+async function stop(){
+  await fetch("/stop?id=" + runId, {method:"POST"});
+}
+
+document.getElementById("btnStart").addEventListener("click", start);
+document.getElementById("btnStop").addEventListener("click", stop);
+</script>
+</body>
+</html>
