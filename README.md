@@ -36,8 +36,9 @@
 ```bash
 go mod tidy
 go run ./cmd/server
+```
 
 После запуска приложение доступно по адресу:
 ```bash
 http://localhost:8080/
-
+```
